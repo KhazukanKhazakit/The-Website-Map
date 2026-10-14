@@ -1,0 +1,1168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Intramuros 1944: Everyday Life, Famine & Survival</title>
+<meta name="description" content="An interactive historical walking guide to everyday life, famine and resistance inside Intramuros, Manila, during the Japanese occupation.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=Special+Elite&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  :root {
+    --bg-color: #1a1614;
+    --panel-bg: #26211e;
+    --panel-deep: #181513;
+    --border-color: #4a3f35;
+    --accent-gold: #d4af37;
+    --accent-gold-dim: rgba(212, 175, 55, 0.14);
+    --text-main: #e2dcd0;
+    --text-muted: #a39b8b;
+    --danger-red: #a3201b;
+    --paper: #e9dfc7;
+    --ink: #2b231c;
+    --font-display: 'IM Fell English', Georgia, serif;
+    --font-body: 'Source Serif 4', Georgia, serif;
+    --font-type: 'Special Elite', 'Courier New', monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    font-family: var(--font-body);
+    background-color: var(--bg-color);
+    background-image:
+      radial-gradient(ellipse at 20% -10%, rgba(212,175,55,0.08), transparent 55%),
+      radial-gradient(ellipse at 110% 110%, rgba(139,0,0,0.12), transparent 50%);
+    background-attachment: fixed;
+    color: var(--text-main);
+    margin: 0;
+    padding: 0;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* Film-grain overlay */
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1000;
+    opacity: 0.07;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent-gold);
+    outline-offset: 3px;
+  }
+
+  /* ---------- Header ---------- */
+  header {
+    background: linear-gradient(to bottom, #110e0d, #26211e);
+    border-bottom: 2px solid var(--accent-gold);
+    padding: 34px 20px 26px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  header .kicker {
+    font-family: var(--font-type);
+    color: var(--danger-red);
+    letter-spacing: 4px;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    display: inline-block;
+    border: 2px solid var(--danger-red);
+    padding: 2px 10px;
+    transform: rotate(-2deg);
+    margin-bottom: 12px;
+    opacity: 0;
+    animation: stamp 0.5s 0.15s cubic-bezier(.2,1.6,.4,1) forwards;
+  }
+
+  header h1 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-weight: 400;
+    color: var(--accent-gold);
+    font-size: clamp(1.9rem, 4.5vw, 3rem);
+    letter-spacing: 1px;
+    line-height: 1.1;
+    opacity: 0;
+    animation: rise 0.7s 0.3s ease-out forwards;
+  }
+
+  header p {
+    margin: 10px auto 0;
+    max-width: 640px;
+    color: var(--text-muted);
+    font-style: italic;
+    font-size: 1rem;
+    opacity: 0;
+    animation: rise 0.7s 0.45s ease-out forwards;
+  }
+
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: none; }
+  }
+  @keyframes stamp {
+    from { opacity: 0; transform: rotate(-2deg) scale(1.8); }
+    to   { opacity: 0.9; transform: rotate(-2deg) scale(1); }
+  }
+
+  /* ---------- Tabs ---------- */
+  .nav-tabs {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    background: #151210;
+    border-bottom: 1px solid var(--border-color);
+    position: sticky;
+    top: 0;
+    z-index: 500;
+  }
+
+  .nav-tabs button {
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: var(--text-muted);
+    padding: 14px 22px;
+    font-family: var(--font-type);
+    font-size: 0.95rem;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+  }
+
+  .nav-tabs button:hover { color: var(--text-main); }
+
+  .nav-tabs button[aria-selected="true"] {
+    color: var(--accent-gold);
+    border-bottom-color: var(--accent-gold);
+    background: rgba(212, 175, 55, 0.05);
+  }
+
+  .container {
+    max-width: 1080px;
+    margin: 28px auto;
+    padding: 0 16px;
+  }
+
+  .view { display: none; }
+  .view.active { display: block; animation: rise 0.4s ease-out; }
+
+  .card {
+    background-color: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 24px;
+    margin-bottom: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+  }
+
+  .section-title {
+    font-family: var(--font-display);
+    font-weight: 400;
+    color: var(--accent-gold);
+    font-size: 1.6rem;
+    margin: 0 0 4px;
+  }
+
+  .section-sub {
+    color: var(--text-muted);
+    margin: 0 0 18px;
+    font-size: 0.95rem;
+  }
+
+  /* ---------- Map view ---------- */
+  .map-layout {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+
+  .map-wrap { position: relative; }
+
+  #map {
+    width: 100%;
+    height: 460px;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    background: #2a2420;
+  }
+
+  /* Sepia-tint modern tiles so they read as an archival map */
+  #map .leaflet-tile-pane { filter: sepia(0.55) saturate(0.8) brightness(0.85) contrast(1.05); }
+
+  .map-controls {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+  }
+
+  .btn {
+    background: #332c27;
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
+    padding: 8px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: var(--font-type);
+    font-size: 0.85rem;
+    transition: background 0.2s, border-color 0.2s, transform 0.1s;
+  }
+  .btn:hover { background: #3f352f; border-color: var(--accent-gold); }
+  .btn:active { transform: translateY(1px); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn.primary { background: var(--accent-gold); color: #1a1614; border-color: var(--accent-gold); }
+  .btn.primary:hover { background: #e5c351; }
+
+  .progress {
+    font-family: var(--font-type);
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin: 0 0 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .progress-bar {
+    flex: 1;
+    height: 6px;
+    background: #1f1b18;
+    border: 1px solid var(--border-color);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .progress-bar span {
+    display: block;
+    height: 100%;
+    width: 0;
+    background: var(--accent-gold);
+    transition: width 0.4s ease;
+  }
+
+  .site-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 8px;
+  }
+
+  .site-item {
+    width: 100%;
+    text-align: left;
+    background: #1f1b18;
+    border: 1px solid var(--border-color);
+    color: inherit;
+    font: inherit;
+    padding: 11px 12px 11px 50px;
+    border-radius: 4px;
+    cursor: pointer;
+    position: relative;
+    transition: border-color 0.2s, background 0.2s, transform 0.2s;
+  }
+
+  .site-item:hover { border-color: var(--accent-gold); transform: translateX(3px); }
+  .site-item[aria-current="true"] { border-color: var(--accent-gold); background: var(--accent-gold-dim); }
+
+  .site-item .num {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 1px solid var(--accent-gold);
+    color: var(--accent-gold);
+    font-family: var(--font-type);
+    display: grid;
+    place-items: center;
+    font-size: 0.85rem;
+  }
+  .site-item.visited .num { background: var(--accent-gold); color: #1a1614; }
+
+  .site-item h4 {
+    margin: 0;
+    color: var(--accent-gold);
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 1.1rem;
+  }
+
+  .site-item p {
+    margin: 0;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+  }
+
+  /* Archival dossier inspector */
+  .dossier {
+    margin-top: 20px;
+    padding: 26px 28px;
+    background: var(--paper);
+    color: var(--ink);
+    border-radius: 2px;
+    position: relative;
+    box-shadow: 0 1px 0 #c9bb98, 0 12px 28px rgba(0,0,0,0.45);
+    background-image:
+      linear-gradient(rgba(120,90,40,0.06) 1px, transparent 1px),
+      radial-gradient(ellipse at 90% 10%, rgba(120,80,20,0.18), transparent 50%);
+    background-size: 100% 28px, 100% 100%;
+  }
+
+  .dossier .file-tag {
+    font-family: var(--font-type);
+    font-size: 0.75rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #6b5a44;
+  }
+
+  .dossier h3 {
+    margin: 4px 0 10px;
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 1.8rem;
+    color: var(--ink);
+  }
+
+  .dossier p { margin: 0 0 12px; }
+
+  .dossier .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin-top: 14px;
+    border-top: 1px dashed #a8987a;
+    padding-top: 14px;
+  }
+  .dossier h5 {
+    margin: 0 0 4px;
+    font-family: var(--font-type);
+    font-weight: 400;
+    font-size: 0.8rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--danger-red);
+  }
+  .dossier .grid p { font-size: 0.92rem; margin: 0; }
+
+  .dossier .stamp {
+    position: absolute;
+    top: 18px;
+    right: 22px;
+    font-family: var(--font-type);
+    color: var(--danger-red);
+    border: 2px solid var(--danger-red);
+    padding: 2px 8px;
+    transform: rotate(6deg);
+    opacity: 0.75;
+    font-size: 0.8rem;
+    letter-spacing: 2px;
+  }
+
+  .dossier.flash { animation: rise 0.35s ease-out; }
+
+  .dossier-nav {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 16px;
+    gap: 8px;
+  }
+  .dossier-nav .btn { background: #d8cbad; color: var(--ink); border-color: #a8987a; }
+  .dossier-nav .btn:hover { background: #cdbd9a; border-color: var(--ink); }
+
+  /* Numbered map markers */
+  .num-marker {
+    width: 30px;
+    height: 30px;
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    background: #1a1614;
+    border: 2px solid var(--accent-gold);
+    display: grid;
+    place-items: center;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.5);
+    transition: background 0.2s;
+  }
+  .num-marker span {
+    transform: rotate(45deg);
+    color: var(--accent-gold);
+    font-family: var(--font-type);
+    font-size: 0.9rem;
+  }
+  .num-marker.active { background: var(--accent-gold); }
+  .num-marker.active span { color: #1a1614; }
+
+  .leaflet-popup-content-wrapper, .leaflet-popup-tip {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-body);
+  }
+  .leaflet-popup-content b { font-family: var(--font-display); font-weight: 400; font-size: 1.1rem; }
+
+  /* ---------- Timeline ---------- */
+  .timeline {
+    list-style: none;
+    margin: 0;
+    padding: 0 0 0 28px;
+    position: relative;
+  }
+  .timeline::before {
+    content: "";
+    position: absolute;
+    left: 8px;
+    top: 6px;
+    bottom: 6px;
+    width: 2px;
+    background: linear-gradient(var(--accent-gold), var(--danger-red));
+  }
+  .timeline li {
+    position: relative;
+    margin-bottom: 22px;
+    opacity: 0;
+    transform: translateY(12px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+  }
+  .timeline li.in { opacity: 1; transform: none; }
+  .timeline li::before {
+    content: "";
+    position: absolute;
+    left: -26px;
+    top: 7px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--bg-color);
+    border: 2px solid var(--accent-gold);
+  }
+  .timeline li.critical::before { border-color: var(--danger-red); background: var(--danger-red); }
+  .timeline .date {
+    font-family: var(--font-type);
+    color: var(--accent-gold);
+    font-size: 0.85rem;
+    letter-spacing: 1px;
+  }
+  .timeline li.critical .date { color: #e0675f; }
+  .timeline h4 {
+    margin: 2px 0 4px;
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 1.25rem;
+  }
+  .timeline p { margin: 0; color: var(--text-muted); font-size: 0.95rem; }
+
+  /* ---------- Simulator ---------- */
+  .sim-layout {
+    display: grid;
+    grid-template-columns: 1fr 240px;
+    gap: 22px;
+    align-items: start;
+  }
+
+  .sim-day {
+    font-family: var(--font-type);
+    color: var(--danger-red);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+  }
+
+  .sim-box h3 {
+    color: var(--accent-gold);
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 1.6rem;
+    margin: 4px 0 10px;
+  }
+
+  #simText { font-size: 1.05rem; }
+
+  .choice-btn {
+    display: block;
+    width: 100%;
+    background: #332c27;
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
+    padding: 13px 16px 13px 44px;
+    margin: 10px 0;
+    text-align: left;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: var(--font-body);
+    font-size: 0.98rem;
+    position: relative;
+    transition: background 0.2s, border-color 0.2s, transform 0.15s;
+  }
+  .choice-btn::before {
+    content: attr(data-key);
+    position: absolute;
+    left: 14px;
+    top: 13px;
+    font-family: var(--font-type);
+    color: var(--accent-gold);
+  }
+  .choice-btn:hover { background: #3f352f; border-color: var(--accent-gold); transform: translateX(3px); }
+
+  #simResult {
+    margin-top: 15px;
+    padding: 14px 16px;
+    background: var(--panel-deep);
+    border-radius: 4px;
+    border: 1px dashed var(--border-color);
+    color: #f3e5ab;
+  }
+  #simResult .delta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+    font-family: var(--font-type);
+    font-size: 0.8rem;
+  }
+  #simResult .delta span { padding: 2px 8px; border-radius: 3px; background: #26211e; }
+  #simResult .delta .up { color: #9fcf8a; }
+  #simResult .delta .down { color: #e0675f; }
+
+  .stats {
+    background: var(--panel-deep);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 16px;
+    position: sticky;
+    top: 64px;
+  }
+  .stats h4 {
+    margin: 0 0 12px;
+    font-family: var(--font-type);
+    font-weight: 400;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+  .stat { margin-bottom: 14px; }
+  .stat label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    margin-bottom: 4px;
+  }
+  .meter {
+    height: 8px;
+    background: #2a2420;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .meter span {
+    display: block;
+    height: 100%;
+    transition: width 0.6s ease, background 0.6s ease;
+  }
+  .stats .note { font-size: 0.78rem; color: var(--text-muted); margin: 6px 0 0; font-style: italic; }
+
+  .ending {
+    text-align: center;
+    padding: 10px 0 4px;
+  }
+  .ending .verdict {
+    display: inline-block;
+    font-family: var(--font-type);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    border: 2px solid currentColor;
+    padding: 4px 14px;
+    transform: rotate(-3deg);
+    margin-bottom: 10px;
+    animation: stamp 0.5s cubic-bezier(.2,1.6,.4,1) forwards;
+  }
+
+  footer {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    padding: 10px 20px 40px;
+    max-width: 760px;
+    margin: 0 auto;
+  }
+  footer p { margin: 4px 0; }
+
+  @media (max-width: 820px) {
+    .map-layout, .sim-layout { grid-template-columns: 1fr; }
+    #map { height: 340px; }
+    .stats { position: static; order: -1; }
+    .dossier .grid { grid-template-columns: 1fr; }
+    .dossier { padding: 22px 18px; }
+    .dossier .stamp { position: static; display: inline-block; margin-bottom: 8px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+    header .kicker, header h1, header p { opacity: 1; }
+    .timeline li { opacity: 1; transform: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="kicker">Manila &middot; Occupied 1942&ndash;1945</div>
+  <h1>Intramuros 1944: Survival &amp; Occupation</h1>
+  <p>An interactive historical walking guide to everyday life, famine, and resistance inside the Walled City</p>
+</header>
+
+<nav class="nav-tabs" role="tablist" aria-label="Guide sections">
+  <button role="tab" id="tab-map" aria-controls="mapTab" aria-selected="true" data-tab="mapTab">Map &amp; Sites</button>
+  <button role="tab" id="tab-timeline" aria-controls="timelineTab" aria-selected="false" data-tab="timelineTab" tabindex="-1">Timeline</button>
+  <button role="tab" id="tab-sim" aria-controls="simTab" aria-selected="false" data-tab="simTab" tabindex="-1">1944 Survival Simulator</button>
+</nav>
+
+<main class="container">
+
+  <!-- MAP VIEW -->
+  <section id="mapTab" class="view active" role="tabpanel" aria-labelledby="tab-map">
+    <div class="card">
+      <h2 class="section-title">Walking the Walled City</h2>
+      <p class="section-sub">Follow the dotted route between six stops. Select a stop on the map or in the list to open its archival file.</p>
+
+      <div class="map-layout">
+        <div class="map-wrap">
+          <div id="map" role="region" aria-label="Map of Intramuros historical stops"></div>
+          <div class="map-controls">
+            <button class="btn primary" id="startTour">&#9654; Start walking tour</button>
+            <button class="btn" id="fitAll">Show all stops</button>
+            <button class="btn" id="resetVisited">Reset progress</button>
+          </div>
+        </div>
+
+        <div>
+          <div class="progress" aria-live="polite">
+            <span id="progressLabel">0 of 6 stops visited</span>
+            <div class="progress-bar"><span id="progressFill"></span></div>
+          </div>
+          <ul class="site-list" id="siteList"></ul>
+        </div>
+      </div>
+
+      <article class="dossier" id="siteInspector" aria-live="polite">
+        <div class="file-tag">Archive &middot; Field Notes</div>
+        <h3>Select a historical stop</h3>
+        <p>Choose any location to read notes on daily survival conditions, military restrictions, and civilian endurance in late 1944 &mdash; and what you can still see standing there today.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- TIMELINE VIEW -->
+  <section id="timelineTab" class="view" role="tabpanel" aria-labelledby="tab-timeline">
+    <div class="card">
+      <h2 class="section-title">From Occupation to Liberation</h2>
+      <p class="section-sub">Key moments that shaped life inside Intramuros, from the arrival of Japanese forces to the destruction of the Walled City.</p>
+      <ol class="timeline" id="timeline"></ol>
+    </div>
+  </section>
+
+  <!-- SIMULATOR VIEW -->
+  <section id="simTab" class="view" role="tabpanel" aria-labelledby="tab-sim">
+    <div class="card sim-box">
+      <div class="sim-layout">
+        <div>
+          <div class="sim-day" id="simDay">Day 1 &middot; November 1944</div>
+          <h3 id="simTitle">Wartime Decision Maker</h3>
+          <p id="simText"></p>
+          <div id="simOptions"></div>
+          <div id="simResult" hidden></div>
+        </div>
+
+        <aside class="stats" aria-label="Household condition">
+          <h4>Your household</h4>
+          <div class="stat">
+            <label><span>Food</span><span id="valFood"></span></label>
+            <div class="meter"><span id="barFood"></span></div>
+          </div>
+          <div class="stat">
+            <label><span>Health</span><span id="valHealth"></span></label>
+            <div class="meter"><span id="barHealth"></span></div>
+          </div>
+          <div class="stat">
+            <label><span>Scrip (pesos)</span><span id="valMoney"></span></label>
+            <div class="meter"><span id="barMoney"></span></div>
+          </div>
+          <div class="stat">
+            <label><span>Kempeitai suspicion</span><span id="valRisk"></span></label>
+            <div class="meter"><span id="barRisk"></span></div>
+          </div>
+          <p class="note">If health reaches zero or suspicion peaks, your story ends.</p>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <p>Narratives are composites based on accounts of civilian life in occupied Manila and are simplified for education. Over 100,000 civilians died during the Battle of Manila in February&ndash;March 1945.</p>
+  <p>Map tiles &copy; Esri. Marker positions are approximate.</p>
+</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  /* ================= DATA ================= */
+  var SITES = [
+    {
+      name: "Fort Santiago",
+      tagline: "Kempeitai Headquarters & Dungeons",
+      lat: 14.5950, lng: 120.9703,
+      status: "Restricted",
+      text: "Military headquarters of the Kempeitai, the Japanese military police. Civilians suspected of guerrilla links, listening to forbidden radio broadcasts, or hoarding rationed goods were imprisoned and interrogated in its cells and dungeons.",
+      life: "Families gathered outside the gates hoping for news of detained relatives. Being seen too often near the fort could itself draw suspicion.",
+      today: "The restored fort, the Rizal Shrine, and a memorial cross marking the remains of prisoners found after the 1945 battle."
+    },
+    {
+      name: "Manila Cathedral Site",
+      tagline: "Zone of Destruction & Scavenging",
+      lat: 14.5915, lng: 120.9732,
+      status: "Hazard",
+      text: "Facing Plaza de Roma, the cathedral became a focal point of bombardment in the final battle and was reduced to ruins. As food ran out, civilians scavenged nearby lots and rubble for edible greens, firewood and anything that could be bartered.",
+      life: "Kangkong, camote tops and banana stalks replaced rice on many tables. Open plazas were turned into small vegetable plots.",
+      today: "The current cathedral, rebuilt in the 1950s, stands on the same site overlooking Plaza de Roma."
+    },
+    {
+      name: "Puerta del Parian",
+      tagline: "Checkpoint & Black Market Gate",
+      lat: 14.5928, lng: 120.9764,
+      status: "Checkpoint",
+      text: "One of the gates connecting the Walled City to the busy districts beyond. Passage through gates and checkpoints meant bowing to sentries and risking searches of anything carried in or out.",
+      life: "Rice, sugar and medicine moved through informal networks. A sack hidden under vegetables could feed a family for a week or end in arrest.",
+      today: "The restored gate along the eastern walls, facing the old Parian district and Manila City Hall."
+    },
+    {
+      name: "Santa Clara Convent",
+      tagline: "Emergency Triage & Famine Relief",
+      lat: 14.5900, lng: 120.9760,
+      status: "Relief",
+      text: "Old religious grounds that served communities around them during the worst months of wartime famine. Religious houses across the city shared what little food and shelter they had and tended the sick.",
+      life: "Lines for thin rice porridge formed before dawn. Malnutrition, beriberi and dysentery spread as rations shrank.",
+      today: "The monastic community later relocated outside Intramuros; little of the original complex survives."
+    },
+    {
+      name: "San Agustin Church",
+      tagline: "Refugee Shelter & Crypts",
+      lat: 14.5889, lng: 120.9750,
+      status: "Shelter",
+      text: "The only stone church inside Intramuros to survive the 1945 leveling. Its thick walls, crypts and courtyards became desperate holding areas for hundreds of starving refugees as the fighting closed in.",
+      life: "Families slept shoulder to shoulder on stone floors, sharing water drawn from wells and whatever food remained.",
+      today: "A UNESCO World Heritage Site and museum, with the crypt and cloisters open to visitors."
+    },
+    {
+      name: "Baluarte de San Diego",
+      tagline: "Southern Bastion & Lookout",
+      lat: 14.5871, lng: 120.9757,
+      status: "Fortified",
+      text: "The ace-of-spades shaped bastion at the southern corner of the walls. During the occupation the old defenses were again treated as military ground, and the walls became the last line of a hopeless defense in February 1945.",
+      life: "From inside the walls, residents could hear American air raids over the bay and the port area from September 1944 onward.",
+      today: "A restored bastion with gardens, often the quiet final stop of a walking tour."
+    }
+  ];
+
+  var TIMELINE = [
+    { date: "2 Jan 1942", title: "Japanese forces enter Manila", text: "Declared an open city, Manila is occupied without a fight. Military rule, curfews and checkpoints begin." },
+    { date: "1942 – 1943", title: "Scrip and shortages", text: "Japanese-issued peso notes flood the economy. Rice is requisitioned for the army and prices begin to climb." },
+    { date: "14 Oct 1943", title: "The Second Republic", text: "A nominally independent republic under José P. Laurel is proclaimed, but real power stays with the Japanese military." },
+    { date: "21 Sep 1944", title: "First American air raids", text: "US carrier aircraft strike Manila Bay and military targets. Shortages turn to famine as supply lines collapse.", critical: true },
+    { date: "20 Oct 1944", title: "Landing at Leyte", text: "American forces return to the Philippines. In Manila, scrip becomes nearly worthless and Kempeitai crackdowns intensify." },
+    { date: "3 Feb 1945", title: "The Battle of Manila begins", text: "US forces reach the city. Japanese troops fall back across the Pasig River and fortify Intramuros.", critical: true },
+    { date: "23 Feb 1945", title: "Assault on Intramuros", text: "After days of heavy artillery, American and Filipino troops storm the walls. Thousands of civilians are trapped inside.", critical: true },
+    { date: "3 Mar 1945", title: "The battle ends", text: "Manila is liberated, but the Walled City lies in ruins. Over 100,000 civilians have died in the month-long battle." }
+  ];
+
+  /* ================= TABS ================= */
+  var map; // defined below
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('.nav-tabs button'));
+
+  function switchTab(btn) {
+    tabs.forEach(function(b) {
+      var on = b === btn;
+      b.setAttribute('aria-selected', on);
+      b.tabIndex = on ? 0 : -1;
+      document.getElementById(b.dataset.tab).classList.toggle('active', on);
+    });
+    if (btn.dataset.tab === 'mapTab') setTimeout(function() { map.invalidateSize(); }, 150);
+    if (btn.dataset.tab === 'timelineTab') revealTimeline();
+  }
+
+  tabs.forEach(function(btn, i) {
+    btn.addEventListener('click', function() { switchTab(btn); });
+    btn.addEventListener('keydown', function(e) {
+      var dir = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+      if (!dir) return;
+      var next = tabs[(i + dir + tabs.length) % tabs.length];
+      next.focus();
+      switchTab(next);
+    });
+  });
+
+  /* ================= MAP ================= */
+  map = L.map('map', { scrollWheelZoom: false }).setView([14.5910, 120.9740], 16);
+
+  // Esri World Street Map tiles load reliably without 403 blocks
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, Intermap, iPC, NRCAN, Esri Japan, METI, Esri China (Hong Kong), and the GIS User Community'
+  }).addTo(map);
+
+  var route = SITES.map(function(s) { return [s.lat, s.lng]; });
+  L.polyline(route, { color: '#d4af37', weight: 3, opacity: 0.85, dashArray: '6 8' }).addTo(map);
+
+  var STORAGE_KEY = 'intramuros1944-visited';
+  var visited = loadVisited();
+  var current = -1;
+  var leafletMarkers = [];
+
+  function loadVisited() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch (e) { return []; }
+  }
+  function saveVisited() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(visited)); } catch (e) {}
+  }
+
+  function markerIcon(i, active) {
+    return L.divIcon({
+      className: '',
+      html: '<div class="num-marker' + (active ? ' active' : '') + '"><span>' + (i + 1) + '</span></div>',
+      iconSize: [30, 30],
+      iconAnchor: [15, 30],
+      popupAnchor: [0, -30]
+    });
+  }
+
+  var list = document.getElementById('siteList');
+  SITES.forEach(function(s, i) {
+    var mk = L.marker([s.lat, s.lng], { icon: markerIcon(i, false), title: s.name, keyboard: true })
+      .addTo(map)
+      .bindPopup('<b>' + s.name + '</b><br>' + s.tagline);
+    mk.on('click', function() { inspectSite(i, false); });
+    leafletMarkers.push(mk);
+
+    var li = document.createElement('li');
+    li.innerHTML =
+      '<button class="site-item" type="button">' +
+        '<span class="num">' + (i + 1) + '</span>' +
+        '<h4>' + s.name + '</h4><p>' + s.tagline + '</p>' +
+      '</button>';
+    li.firstChild.addEventListener('click', function() { inspectSite(i, true); });
+    list.appendChild(li);
+  });
+
+  function renderList() {
+    var items = list.querySelectorAll('.site-item');
+    items.forEach(function(el, i) {
+      el.classList.toggle('visited', visited.indexOf(i) !== -1);
+      el.setAttribute('aria-current', i === current ? 'true' : 'false');
+    });
+    leafletMarkers.forEach(function(mk, i) { mk.setIcon(markerIcon(i, i === current)); });
+    var n = visited.length;
+    document.getElementById('progressLabel').textContent = n + ' of ' + SITES.length + ' stops visited';
+    document.getElementById('progressFill').style.width = (n / SITES.length * 100) + '%';
+  }
+
+  function inspectSite(i, fly) {
+    current = i;
+    var s = SITES[i];
+    if (visited.indexOf(i) === -1) { visited.push(i); saveVisited(); }
+
+    var box = document.getElementById('siteInspector');
+    box.innerHTML =
+      '<div class="stamp">' + s.status + '</div>' +
+      '<div class="file-tag">File ' + String(i + 1).padStart(2, '0') + ' &middot; Intramuros, 1944</div>' +
+      '<h3>' + s.name + '</h3>' +
+      '<p>' + s.text + '</p>' +
+      '<div class="grid">' +
+        '<div><h5>Daily life</h5><p>' + s.life + '</p></div>' +
+        '<div><h5>What stands today</h5><p>' + s.today + '</p></div>' +
+      '</div>' +
+      '<div class="dossier-nav">' +
+        '<button class="btn" type="button" data-step="-1"' + (i === 0 ? ' disabled' : '') + '>&larr; Previous stop</button>' +
+        '<button class="btn" type="button" data-step="1"' + (i === SITES.length - 1 ? ' disabled' : '') + '>Next stop &rarr;</button>' +
+      '</div>';
+    box.classList.remove('flash'); void box.offsetWidth; box.classList.add('flash');
+    box.querySelectorAll('[data-step]').forEach(function(b) {
+      b.addEventListener('click', function() { inspectSite(current + Number(b.dataset.step), true); });
+    });
+
+    if (fly) {
+      map.flyTo([s.lat, s.lng], 17, { duration: 0.8 });
+      leafletMarkers[i].openPopup();
+    }
+    renderList();
+  }
+
+  document.getElementById('startTour').addEventListener('click', function() {
+    inspectSite(0, true);
+    document.getElementById('siteInspector').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+  document.getElementById('fitAll').addEventListener('click', function() {
+    map.closePopup();
+    map.flyToBounds(L.latLngBounds(route), { padding: [40, 40], duration: 0.8 });
+  });
+  document.getElementById('resetVisited').addEventListener('click', function() {
+    visited = []; saveVisited(); renderList();
+  });
+
+  renderList();
+
+  /* ================= TIMELINE ================= */
+  var tl = document.getElementById('timeline');
+  TIMELINE.forEach(function(ev) {
+    var li = document.createElement('li');
+    if (ev.critical) li.className = 'critical';
+    li.innerHTML = '<div class="date">' + ev.date + '</div><h4>' + ev.title + '</h4><p>' + ev.text + '</p>';
+    tl.appendChild(li);
+  });
+
+  function revealTimeline() {
+    tl.querySelectorAll('li').forEach(function(li, i) {
+      li.classList.remove('in');
+      setTimeout(function() { li.classList.add('in'); }, 80 + i * 90);
+    });
+  }
+
+  /* ================= SIMULATOR ================= */
+  var START = { food: 30, health: 70, money: 100, risk: 10 };
+  var state;
+
+  // Each scene: day label, title, text, choices -> { text, effect, outcome, next }
+  var SCENES = {
+    market: {
+      day: "Day 1 · November 1944",
+      title: "The Alley Trader",
+      text: 'You are a civilian head of household inside Intramuros. Hyperinflation has made Japanese military scrip ("Mickey Mouse money") nearly worthless. You hold 100 pesos, and your family has not eaten a proper meal in three days. A black market trader offers a small sack of corn grits, but a Kempeitai patrol is watching the alleyway.',
+      choices: [
+        { text: "Trade all your scrip for the corn grits, risking confiscation.",
+          effect: { food: 35, money: -100, risk: 15 },
+          outcome: "You secure the corn grits, but the price wipes out your savings. A sentry eyes you as you hurry home. Prices double again the following week.",
+          next: "radio" },
+        { text: "Decline the trade, ration your water, and hide deeper inside the church crypt.",
+          effect: { food: -10, health: -15 },
+          outcome: "You avoid the patrol, but your family grows weaker from hunger and dehydration in the damp crypt.",
+          next: "radio" },
+        { text: "Offer your late mother's wedding ring instead of scrip.",
+          effect: { food: 40, health: 5, risk: 5 },
+          outcome: "The trader's eyes light up. Gold still means something when paper does not. It hurts to part with it, but tonight the children eat.",
+          next: "radio" }
+      ]
+    },
+    radio: {
+      day: "Day 9 · November 1944",
+      title: "A Forbidden Broadcast",
+      text: "Your neighbor whispers that he has a hidden shortwave radio tuned to American broadcasts. The Americans have landed at Leyte. He wants to share the news with others in the building, and asks you to help pass it along.",
+      choices: [
+        { text: "Help spread the news quietly. People need hope.",
+          effect: { risk: 25, health: 5 },
+          outcome: "Word spreads through the building like warmth. Spirits rise, but so do the odds that an informer is listening.",
+          next: "illness" },
+        { text: "Refuse and tell him to hide the radio better.",
+          effect: { risk: -5 },
+          outcome: "He is disappointed, but agrees. You keep your head down and your name out of conversations.",
+          next: "illness" }
+      ]
+    },
+    illness: {
+      day: "Day 21 · December 1944",
+      title: "Fever in the Household",
+      text: "Your youngest child develops a high fever and swollen legs, signs of beriberi. Medicine is almost impossible to find. A nun at the Santa Clara grounds is said to have a small supply, and a pharmacist outside the walls sells tablets at ruinous prices.",
+      choices: [
+        { text: "Queue before dawn at the convent and ask for help.",
+          effect: { health: 15, food: -5 },
+          outcome: "After hours in line, the sister gives you a little rice bran and vitamin tablets. It is not much, but the fever breaks.",
+          next: "raid" },
+        { text: "Slip out through the Parian gate to the pharmacist.",
+          effect: { health: 20, money: -20, risk: 15 },
+          outcome: "The sentry searches you roughly but lets you through. The tablets work, though every peso you scraped together is gone.",
+          next: "raid" },
+        { text: "Boil camote tops and wait it out at home.",
+          effect: { health: -20, food: 5 },
+          outcome: "The greens fill the pot, but your child grows weaker. The whole family's strength is ebbing.",
+          next: "raid" }
+      ]
+    },
+    raid: {
+      day: "Day 33 · January 1945",
+      title: "Soldiers at the Door",
+      text: "A Kempeitai detachment is searching houses street by street, looking for men of fighting age and hidden supplies. You hear boots on the stairs below.",
+      choices: [
+        { text: "Hide your food stores under the floorboards and stay calm.",
+          effect: { risk: 10 },
+          outcome: "The soldiers overturn furniture and leave. Your stores survive, but your hands won't stop shaking for hours.",
+          next: "battle" },
+        { text: "Hand over part of your food to send them on their way.",
+          effect: { food: -20, risk: -15 },
+          outcome: "They take the sack and move on. Your family is hungrier, but you are no longer on their list.",
+          next: "battle" },
+        { text: "Flee over the rooftops toward San Agustin.",
+          effect: { health: -10, risk: -5, food: -10 },
+          outcome: "You escape, leaving most of your belongings behind. The church is crowded with families who made the same choice.",
+          next: "battle" }
+      ]
+    },
+    battle: {
+      day: "Day 54 · February 1945",
+      title: "The Walls Close In",
+      text: "American artillery shakes the city and Japanese troops have sealed Intramuros. Fires burn beyond the walls. Word spreads that civilians may be allowed to leave through a gate during a lull, but no one knows if it is safe.",
+      choices: [
+        { text: "Take the chance and lead your family out through the gate.",
+          effect: { health: -10, risk: 10 },
+          outcome: "You move through the smoke in silence, clutching the children's hands.",
+          next: "end", gamble: true },
+        { text: "Shelter in the crypts of San Agustin and wait for it to end.",
+          effect: { food: -15, health: -15 },
+          outcome: "Days pass in darkness, punctuated by the thunder of shells overhead.",
+          next: "end" }
+      ]
+    }
+  };
+
+  var LABELS = { food: "Food", health: "Health", money: "Scrip", risk: "Suspicion" };
+
+  function clamp(v, max) { return Math.max(0, Math.min(max, v)); }
+
+  function applyEffect(eff) {
+    var applied = {};
+    Object.keys(eff).forEach(function(k) {
+      var before = state[k];
+      state[k] = clamp(state[k] + eff[k], 100);
+      applied[k] = state[k] - before;
+    });
+    // Each passing week of famine takes its toll
+    var hungerCost = state.food < 15 ? 10 : 0;
+    if (hungerCost) { state.health = clamp(state.health - hungerCost, 100); applied.health = (applied.health || 0) - hungerCost; }
+    return applied;
+  }
+
+  function meterColor(k, v) {
+    if (k === 'risk') return v > 70 ? '#c0392b' : v > 40 ? '#d4882b' : '#8a7a5c';
+    return v < 25 ? '#c0392b' : v < 50 ? '#d4882b' : '#d4af37';
+  }
+
+  function renderStats() {
+    ['food', 'health', 'money', 'risk'].forEach(function(k) {
+      var cap = k.charAt(0).toUpperCase() + k.slice(1);
+      document.getElementById('val' + cap).textContent = state[k];
+      var bar = document.getElementById('bar' + cap);
+      bar.style.width = state[k] + '%';
+      bar.style.background = meterColor(k, state[k]);
+    });
+  }
+
+  function renderScene(id) {
+    var opts = document.getElementById('simOptions');
+    opts.innerHTML = '';
+    if (id === 'end') return renderEnding();
+
+    var sc = SCENES[id];
+    document.getElementById('simDay').textContent = sc.day;
+    document.getElementById('simTitle').textContent = sc.title;
+    document.getElementById('simText').textContent = sc.text;
+
+    sc.choices.forEach(function(c, i) {
+      var b = document.createElement('button');
+      b.className = 'choice-btn';
+      b.type = 'button';
+      b.dataset.key = String.fromCharCode(65 + i);
+      b.textContent = c.text;
+      b.addEventListener('click', function() { makeChoice(c); });
+      opts.appendChild(b);
+    });
+  }
+
+  function makeChoice(c) {
+    var applied = applyEffect(c.effect);
+    renderStats();
+
+    var outcome = c.outcome;
+    if (c.gamble) {
+      var safe = state.risk < 50 && state.health > 25;
+      outcome += safe
+        ? " The guards are distracted by the bombardment. You reach the American lines."
+        : " A sentry spots you and fires. In the chaos you scatter back into the ruins, wounded.";
+      if (!safe) { state.health = clamp(state.health - 25, 100); applied.health = (applied.health || 0) - 25; renderStats(); }
+      state.escaped = safe;
+    }
+
+    var res = document.getElementById('simResult');
+    var deltas = Object.keys(applied).filter(function(k) { return applied[k] !== 0; }).map(function(k) {
+      var good = k === 'risk' ? applied[k] < 0 : applied[k] > 0;
+      return '<span class="' + (good ? 'up' : 'down') + '">' + LABELS[k] + ' ' + (applied[k] > 0 ? '+' : '') + applied[k] + '</span>';
+    }).join('');
+
+    res.hidden = false;
+    res.innerHTML = '<strong>Outcome:</strong> ' + outcome + (deltas ? '<div class="delta">' + deltas + '</div>' : '');
+
+    var opts = document.getElementById('simOptions');
+    opts.innerHTML = '';
+    var cont = document.createElement('button');
+    cont.className = 'btn primary';
+    cont.type = 'button';
+    cont.style.marginTop = '12px';
+
+    var lost = state.health <= 0 || state.risk >= 100;
+    cont.textContent = lost || c.next === 'end' ? 'See what became of your family →' : 'Continue →';
+    cont.addEventListener('click', function() {
+      res.hidden = true;
+      renderScene(lost ? 'end' : c.next);
+    });
+    res.appendChild(cont);
+    cont.focus();
+  }
+
+  function renderEnding() {
+    var verdict, color, text;
+    if (state.risk >= 100) {
+      verdict = "Arrested"; color = "#e0675f";
+      text = "One night the Kempeitai come for you. You are taken to Fort Santiago and your family never learns what happened inside. Thousands of Manileños shared this fate, remembered today by the memorial in the fort's grounds.";
+    } else if (state.health <= 0) {
+      verdict = "Lost to famine"; color = "#e0675f";
+      text = "Hunger and illness proved stronger than will. Famine killed quietly in occupied Manila, long before the shells fell, and many families were never counted.";
+    } else if (state.escaped) {
+      verdict = "Survived"; color = "#9fcf8a";
+      text = "You reach the liberated districts and a relief kitchen hands your children their first full meal in months. Behind you, the Walled City burns. You will spend years rebuilding, but your family lives.";
+    } else {
+      verdict = "Endured"; color = "#d4af37";
+      text = "When the guns fall silent on 3 March 1945, you emerge from the crypts of San Agustin into a city of rubble. Your family is gaunt and grieving, but together. San Agustin is the only church in Intramuros still standing.";
+    }
+
+    document.getElementById('simDay').textContent = "Aftermath · March 1945";
+    document.getElementById('simTitle').textContent = "Your Story's End";
+    document.getElementById('simText').innerHTML =
+      '<div class="ending"><div class="verdict" style="color:' + color + '">' + verdict + '</div></div>' + text;
+
+    var opts = document.getElementById('simOptions');
+    var again = document.createElement('button');
+    again.className = 'btn primary';
+    again.type = 'button';
+    again.textContent = '↺ Live through it again';
+    again.addEventListener('click', startSim);
+    opts.appendChild(again);
+  }
+
+  function startSim() {
+    state = Object.assign({}, START);
+    document.getElementById('simResult').hidden = true;
+    renderStats();
+    renderScene('market');
+  }
+
+  startSim();
+</script>
+
+</body>
+</html>
